@@ -212,4 +212,5 @@ sketch
 # Ignore code-workspaces
 *.code-workspace
 
+.dist
 # End of https://www.toptal.com/developers/gitignore/api/macos,visualstudiocode,node,react
