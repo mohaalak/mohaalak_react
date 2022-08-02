@@ -4,20 +4,26 @@ interface TodoItem {
 }
 
 type State = ReadonlyArray<Readonly<TodoItem>>;
-let state: State = [];
 
-const setState = (newState: State) => {
-  state = newState;
-  render(state);
+const init = (initialData: State) => {
+  let state: State = initialData;
+  const setState = (fn: (oldState: State) => State) => {
+    const newState = fn(state);
+    render(newState);
+    state = newState;
+  };
+
+  render(initialData);
+  return setState;
 };
 
-render(state);
+const setState = init([]);
 
 const addTodo = (value: string) => {
-  setState([...state, { value, done: false }]);
+  setState((state) => [...state, { value, done: false }]);
 };
 const toggleTodo = (index: number) => {
-  setState(
+  setState((state) =>
     state.map((x, i) => {
       if (i === index) {
         return { ...x, done: !x.done };
