@@ -7,6 +7,7 @@
     "start": "parcel index.html"
   },
   "devDependencies": {
+    "@types/react": "^18.0.15",
     "parcel": "^2.6.2"
   },
   "dependencies": {

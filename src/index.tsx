@@ -1,3 +1,4 @@
+//** @jsx createElement */
 interface TodoItem {
   value: string;
   done: boolean;
@@ -5,20 +6,22 @@ interface TodoItem {
 
 type State = ReadonlyArray<Readonly<TodoItem>>;
 const createElement = (
-    type: string,
-    props: Record<string, any>,
-    ...children: Array<MElement | string>
-  ): MElement => {
-    return {
-      type,
-      props,
-      children: children.map((x) =>
+  type: string,
+  props?: Record<string, any>,
+  ...children: Array<MElement | string>
+): MElement => {
+  return {
+    type,
+    props: props ?? {},
+    children: children
+      .flatMap((x) => (Array.isArray(x) ? x : [x]))
+      .map((x) =>
         typeof x === "string"
           ? { type: "TEXT ELEMENT", props: { nodeValue: x }, children: [] }
           : x
       ),
-    };
   };
+};
 const init = (initialData: State) => {
   let state: State = initialData;
   const setState = (fn: (oldState: State) => State) => {
@@ -62,33 +65,38 @@ function renderHTML(element: MElement) {
     return dom;
   } else {
     const dom = document.createElement(element.type);
-    Object.entries(element.props).forEach(([key, value]) => {
-      if (key === "style") {
-        const styleToString = (style: any) => {
-          return Object.keys(style).reduce(
-            (acc, key) =>
-              acc +
-              key
-                .split(/(?=[A-Z])/)
-                .join("-")
-                .toLowerCase() +
-              ":" +
-              style[key] +
-              ";",
-            ""
-          );
-        };
-        (dom as any).style = styleToString(value);
-      } else {
-        (dom as any)[key] = value;
-      }
-    });
-    const children = element.children.map(renderHTML);
-    dom.append(...children);
+    if (element.props) {
+      Object.entries(element.props).forEach(([key, value]) => {
+        if (key.startsWith("on")) {
+          dom.addEventListener(key.slice(2)?.toLowerCase() as string, value);
+        } else if (key === "style") {
+          const styleToString = (style: any) => {
+            return Object.keys(style).reduce(
+              (acc, key) =>
+                acc +
+                key
+                  .split(/(?=[A-Z])/)
+                  .join("-")
+                  .toLowerCase() +
+                ":" +
+                style[key] +
+                ";",
+              ""
+            );
+          };
+          (dom as any).style = styleToString(value);
+        } else {
+          (dom as any)[key] = value;
+        }
+      });
+    }
+    if (element.children) {
+      const children = element.children.map(renderHTML);
+      dom.append(...children);
+    }
     return dom;
   }
 }
-
 
 function render(state: State) {
   const root = document.getElementById("root");
@@ -98,40 +106,35 @@ function render(state: State) {
 
   [...root.children].forEach((x) => root.removeChild(x));
 
-  const object: MElement = createElement(
-    "div",
-    {},
-    createElement(
-      "form",
-      {
-        onsubmit: (event: any) => {
+  console.log(state);
+  const object: MElement = (
+    <div>
+      <form
+        onSubmit={(event: any) => {
           event.preventDefault();
           addTodo(event.target[0].value);
-        },
-      },
-      createElement("input", {}),
-      createElement("button", {}, "Add Todo")
-    ),
+        }}
+      >
+        <input></input>
+        <button>Add Todo</button>
+      </form>
 
-    createElement(
-      "ul",
-      {},
-      ...state.map((x, index) =>
-        createElement(
-          "li",
-          {
-            onclick: () => toggleTodo(index),
-            style: {
+      <ul>
+        {state.map((x) => (
+          <li
+            style={{
               textDecoration: x.done ? "line-through" : "none",
               cursor: "pointer",
-            },
-          },
-          x.value
-        )
-      )
-    )
-  );
+            }}
+          >
+            {x.value}
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) as unknown as MElement;
 
+  console.log(object);
   const dom = renderHTML(object);
 
   root.appendChild(dom);
