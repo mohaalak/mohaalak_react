@@ -6,7 +6,7 @@ function renderHTML(element: MElement) {
     Object.entries(element.props).forEach(([key, value]) => {
       (dom as any)[key] = value;
     });
-    return dom;
+    return dom as unknown as HTMLElement;
   } else {
     const dom = document.createElement(element.type);
     if (element.props) {
@@ -41,15 +41,20 @@ function renderHTML(element: MElement) {
     return dom;
   }
 }
+let previousDom: HTMLElement | null = null;
 const render = (container: MElement, root: HTMLElement | null) => {
   if (root === null) {
     throw new Error("You don't have a root div");
   }
 
-  [...root.children].forEach((x) => root.removeChild(x));
-  const dom = renderHTML(container);
+  const newDom = renderHTML(container);
+  if (previousDom) {
+    root.replaceChild(newDom, previousDom);
+  } else {
+    root.appendChild(newDom);
+  }
 
-  root.appendChild(dom);
+  previousDom = newDom;
 };
 
 export default {
