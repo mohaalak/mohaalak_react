@@ -50,19 +50,23 @@ function reload(state: State) {
           <button>Add Todo</button>
         </form>
 
-        <ul>
-          {state.map((x, i) => (
-            <li
-              onClick={() => toggleTodo(i)}
-              style={{
-                textDecoration: x.done ? "line-through" : "none",
-                cursor: "pointer",
-              }}
-            >
-              {x.value}
-            </li>
-          ))}
-        </ul>
+        {state.length === 0 ? (
+          <h1> All thing done, damet garm!!!</h1>
+        ) : (
+          <ul>
+            {state.map((x, i) => (
+              <li
+                onClick={() => toggleTodo(i)}
+                style={{
+                  textDecoration: x.done ? "line-through" : "none",
+                  cursor: "pointer",
+                }}
+              >
+                {x.value}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     ) as unknown as MElement,
     document.getElementById("root")
