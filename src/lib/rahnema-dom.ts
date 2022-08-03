@@ -1,10 +1,21 @@
-import { MElement } from "./rahnema";
+import { DOMElement, MElement, Component } from "./rahnema";
 
-type Instance = {
+type DomInstance = {
+  tag: "ElementInstance";
   prevDom: HTMLElement;
   prevElement: MElement;
   childInstances: Instance[];
 };
+
+export type ComponentInstance = {
+  tag: "ComponentInstance";
+  component: Component<any, any>;
+  prevDom: HTMLElement;
+  prevElement: MElement;
+  childInstances: Instance[];
+};
+export type Instance = ComponentInstance | DomInstance;
+
 function updateDomAttribute(
   dom: HTMLElement,
   newElement: MElement,
@@ -44,46 +55,77 @@ function updateDomAttribute(
   });
 }
 function instantiate(element: MElement): Instance {
-  if (element.type === "TEXT ELEMENT") {
-    const dom = document.createTextNode("");
-    updateDomAttribute(dom as unknown as HTMLElement, element);
-    return {
-      prevDom: dom as unknown as HTMLElement,
-      prevElement: element,
-      childInstances: [],
-    };
-  } else {
-    const dom = document.createElement(element.type);
-    if (element.props) {
-      updateDomAttribute(dom, element);
-    }
-    const children = (element.children || []).map(instantiate);
+  switch (element.tag) {
+    case "domElement": {
+      if (element.type === "TEXT ELEMENT") {
+        const dom = document.createTextNode("");
+        updateDomAttribute(dom as unknown as HTMLElement, element);
+        return {
+          tag: "ElementInstance",
+          prevDom: dom as unknown as HTMLElement,
+          prevElement: element,
+          childInstances: [],
+        };
+      } else {
+        const dom = document.createElement(element.type);
+        if (element.props) {
+          updateDomAttribute(dom, element);
+        }
+        const children = (element.children || []).map(instantiate);
 
-    dom.append(...children.map((x) => x.prevDom));
-    return { prevDom: dom, childInstances: children, prevElement: element };
+        dom.append(...children.map((x) => x.prevDom));
+        return {
+          tag: "ElementInstance",
+          prevDom: dom,
+          childInstances: children,
+          prevElement: element,
+        };
+      }
+    }
+    case "classComponent": {
+      const component = new element.type(element.props);
+      const elem = component.render();
+      const inst = instantiate(elem);
+      component.__internalInstance = {
+        tag: "ComponentInstance",
+        component,
+        prevDom: inst.prevDom,
+        prevElement: element,
+        childInstances: [inst],
+      };
+
+      return {
+        tag: "ComponentInstance",
+        component: component,
+        prevDom: inst.prevDom,
+        prevElement: element,
+        childInstances: [inst],
+      };
+    }
   }
 }
 
-const reconcile = (
+export const reconcile = (
   newElement: MElement | null,
   instance: Instance | null,
   parentDom: HTMLElement
-) => {
+): Instance | null => {
   if (instance === null) {
+    // create element
     const instance = instantiate(newElement!);
     parentDom.append(instance.prevDom);
     return instance;
   } else if (newElement === null) {
+    // delete elemen
     parentDom.removeChild(instance.prevDom);
     return null;
   } else if (newElement.type !== instance.prevElement.type) {
+    // replace
     const newInstance = instantiate(newElement);
     parentDom.replaceChild(newInstance.prevDom, instance.prevDom);
     return newInstance;
-  } else {
-    if (newElement?.type === "ul") {
-      console.log(newElement, instance, parentDom);
-    }
+  } else if (typeof newElement.type === "string") {
+    // update dom element
     updateDomAttribute(instance.prevDom, newElement, instance.prevElement);
 
     const len = Math.max(
@@ -105,9 +147,29 @@ const reconcile = (
     }
 
     return {
+      tag: "ElementInstance",
       prevElement: newElement,
       prevDom: instance.prevDom,
       childInstances: children.filter((x): x is Instance => x !== null),
+    };
+  } else if (
+    newElement.tag === "classComponent" &&
+    instance.tag === "ComponentInstance"
+  ) {
+    instance.component.props = newElement.props;
+    const elem = instance.component.render();
+    const newInstance = reconcile(
+      elem,
+      instance.childInstances[0]!,
+      parentDom
+    )!;
+
+    return {
+      tag: "ComponentInstance",
+      component: instance.component,
+      prevDom: newInstance!.prevDom,
+      prevElement: newElement,
+      childInstances: [newInstance],
     };
   }
   return instance;
