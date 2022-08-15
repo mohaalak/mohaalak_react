@@ -117,6 +117,7 @@ export const reconcile = (
     return instance;
   } else if (newElement === null) {
     // delete elemen
+
     parentDom.removeChild(instance.prevDom);
     return null;
   } else if (newElement.type !== instance.prevElement.type) {
