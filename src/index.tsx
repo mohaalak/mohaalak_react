@@ -1,5 +1,12 @@
-import Rahnema from "react";
+import Rahnema, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import RahnemaDom from "react-dom";
+import { useCounter } from "./counter";
 import "./index.css";
 
 interface TodoItem {
@@ -25,51 +32,39 @@ type State = {
   filter: Filter;
 };
 
-class Counter extends Rahnema.Component<{}, { counter: number }> {
-  state = { counter: 0 };
+const Counter = () => {
+  const { count } = useCounter(0);
 
-  intervalId: number;
-  componentDidMount() {
-    this.intervalId = setInterval(() => {
-      console.log("INterval anjam shod");
-      this.setState((x) => ({ counter: x.counter + 1 }));
-    }, 1000);
-  }
+  return <h1>{count}</h1>;
+};
+const InputContainer = ({
+  onSubmit,
+  submitText,
+}: {
+  onSubmit: (input: string) => void;
+  submitText: string;
+}) => {
+  const [state, setState] = useState({ inputText: "" });
+  const input = useRef<HTMLInputElement | null>(null);
 
-  componentWillUnmount() {
-    clearInterval(this.intervalId);
-  }
-  render() {
-    return <h1>{this.state.counter}</h1>;
-  }
-}
-class InputContainer extends Rahnema.Component<
-  {
-    onSubmit: (input: string) => void;
-    submitText: string;
-  },
-  { inputText: string }
-> {
-  state: { inputText: string } = { inputText: "" };
-
-  handleChange = (event: Rahnema.ChangeEvent<HTMLInputElement>) => {
-    this.setState((x) => ({ ...x, inputText: event.target.value }));
+  const handleChange = (event: Rahnema.ChangeEvent<HTMLInputElement>) => {
+    setState((x) => ({ ...x, inputText: event.target.value }));
   };
-  render() {
-    return (
-      <form
-        onSubmit={(event: any) => {
-          event.preventDefault();
-          this.props.onSubmit(this.state.inputText);
-          this.setState((x) => ({ ...x, inputText: "" }));
-        }}
-      >
-        <input value={this.state.inputText} onChange={this.handleChange} />
-        <button>{this.props.submitText}</button>
-      </form>
-    ) as any;
-  }
-}
+
+  return (
+    <form
+      onSubmit={(event: any) => {
+        event.preventDefault();
+        onSubmit(state.inputText);
+        input.current?.focus();
+        setState((x) => ({ ...x, inputText: "" }));
+      }}
+    >
+      <input value={state.inputText} onChange={handleChange} ref={input} />
+      <button>{submitText}</button>
+    </form>
+  );
+};
 interface FilterInputProps {
   filter: Filter;
   selectedFilter: Filter;
@@ -98,82 +93,88 @@ const DametGarm = () => (
   </div>
 );
 
-class TodoApp extends Rahnema.Component<{}, State> {
-  state: State = { todos: [], filter: "Todo" };
+const TodoApp = () => {
+  const [todos, setTodos] = useState<Array<TodoItem>>([
+    { value: "Get Milk", done: false },
+    { value: "Get Kooft", done: false },
+    { value: "Get Dard", done: true },
+  ]);
+  const [filter, setF] = useState<Filter>("All");
 
-  addTodo = (value: string) => {
-    this.setState((state) => ({
-      ...state,
-      todos: [...state.todos, { value, done: false }],
-    }));
+  const setFilter = (filter: Filter) => {
+    setF(filter);
   };
-  toggleTodo = (index: number) => {
-    this.setState((state) => ({
-      ...state,
-      todos: state.todos.map((x, i) => {
+  const selectedTodos = useMemo(() => {
+    return todos.filter((x): boolean => {
+      switch (filter) {
+        case "Todo":
+          return !x.done;
+        case "Done":
+          return x.done;
+        case "All":
+          return true;
+      }
+    });
+  }, [todos, filter]);
+
+  const addTodo = useCallback((value: string) => {
+    setTodos((kooft) => [...kooft, { value, done: false }]);
+  }, []);
+
+  const toggleTodo = useCallback((index: number) => {
+    setTodos((todos) =>
+      todos.map((x, i) => {
         if (i === index) {
           return { ...x, done: !x.done };
         }
         return x;
-      }),
-    }));
-  };
-
-  setFilter = (filter: Filter) => this.setState((x) => ({ ...x, filter }));
-
-  render() {
-    return (
-      <div>
-        <InputContainer
-          onSubmit={(x) => this.addTodo(x)}
-          submitText={
-            this.state.todos.length === 0
-              ? "Add your new Todo"
-              : `Add Another Todo (${this.state.todos.length})`
-          }
-        />
-        {this.state.todos.length === 0 ? (
-          <DametGarm></DametGarm>
-        ) : (
-          <ul>
-            {this.state.todos
-              .filter((x): boolean => {
-                switch (this.state.filter) {
-                  case "Todo":
-                    return !x.done;
-                  case "Done":
-                    return x.done;
-                  case "All":
-                    return true;
-                }
-              })
-              .map((x, i) => (
-                <li
-                  key={i}
-                  onClick={() => this.toggleTodo(i)}
-                  style={{
-                    textDecoration: x.done ? "line-through" : "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  {x.value}
-                </li>
-              ))}
-          </ul>
-        )}
-        <div>
-          {filterArray.map((x) => (
-            <FilterInput
-              key={x}
-              selectedFilter={this.state.filter}
-              filter={x}
-              setFilter={this.setFilter}
-            />
-          ))}
-        </div>
-        <pre>{JSON.stringify(this.state, null, 2)}</pre>
-      </div>
+      })
     );
-  }
-}
+  }, []);
+
+  return (
+    <div>
+      <InputContainer
+        onSubmit={addTodo}
+        submitText={
+          todos.length === 0
+            ? "Add your new Todo"
+            : `Add Another Todo (${todos.length})`
+        }
+      />
+      {todos.length === 0 ? (
+        <DametGarm></DametGarm>
+      ) : (
+        <ul>
+          {selectedTodos.map((x, i) => (
+            <li
+              key={i}
+              onClick={() => toggleTodo(i)}
+              style={{
+                textDecoration: x.done ? "line-through" : "none",
+                cursor: "pointer",
+              }}
+            >
+              {x.value}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div>
+        {filterArray.map((x) => (
+          <FilterInput
+            key={x}
+            selectedFilter={filter}
+            filter={x}
+            setFilter={setFilter}
+          />
+        ))}
+      </div>
+      <pre>{JSON.stringify({ todos, filter }, null, 2)}</pre>
+    </div>
+  );
+};
+console.log(<TodoApp></TodoApp>);
+TodoApp.prototype = { hooks: [] };
+TodoApp.prototype.hooks[0] = { value: 0, setState: () => {} };
 RahnemaDom.render(<TodoApp></TodoApp>, document.getElementById("root"));

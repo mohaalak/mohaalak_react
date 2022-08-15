@@ -67,5 +67,25 @@ export class Component<Props, State> {
     return { type: "div", tag: "domElement", props: {}, children: [] };
   }
 }
+let hookIndex = 0;
+let functionComponent: { prototype?: { hooks?: Array<any> } } = {
+  prototype: { hooks: [] },
+};
+let parentDom = {};
+// let instance = {};
+// export const useState = (init: any) => {
+//   const oldHook =
+//     functionComponent?.prototype?.hooks &&
+//     functionComponent?.prototype?.hooks[hookIndex];
+
+//   let value = oldHook?.value || init;
+//   const setValue = (fn) => {
+//     value = fn(value);
+//     setTimeout(() => reconcile(functionComponent(props), null, parentDom), 0);
+//   };
+//   // functionComponent.prototype?.hooks[hookIndex] = { value, setValue };
+//   hookIndex++;
+//   return [value, setValue];
+// };
 
 export default { createElement, Component };
